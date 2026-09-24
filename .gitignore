@@ -1,0 +1,24 @@
+# Dataset - DO NOT upload the 1GB challenge data
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Outputs
+output/*.tsv
+
+# IDE
+.vscode/
