@@ -21,4 +21,10 @@ env/
 output/*.tsv
 
 # IDE
-.vscode/
+.vscode/miniconda/
+miniconda.sh
+__MACOSX/
+*.zip
+member1_repo/
+miniconda/
+student_resource/dataset/
