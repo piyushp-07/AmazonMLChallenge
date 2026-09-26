@@ -52,19 +52,65 @@ def build_features(s1_row: pd.Series, cand_row: pd.Series) -> Dict:
 
 
 def features_from_pairs(s1_df: pd.DataFrame, candidates_df: pd.DataFrame, s2s3_df: pd.DataFrame) -> pd.DataFrame:
-    # candidates_df expected: columns source1_entity_id, candidate_entity_ids (comma-separated)
     rows = []
-    # index s2/s3 by id for fast lookup
-    s2s3_index = s2s3_df.set_index("entity_id")
-    for _, row in candidates_df.iterrows():
-        s1_id = row["source1_entity_id"]
-        cand_list = [c.strip() for c in (row.get("candidate_entity_ids") or "").split(",") if c.strip()]
-        s1_row = s1_df.loc[s1_df["entity_id"] == s1_id].iloc[0]
-        for cid in cand_list:
-            if cid not in s2s3_index.index:
+    s1_dict = s1_df.set_index("entity_id").to_dict(orient="index")
+    s2s3_dict = s2s3_df.set_index("entity_id").to_dict(orient="index")
+    empty_record = {"business_name": "", "business_address": "", "country": ""}
+
+    if "candidate_entity_ids" in candidates_df.columns:
+        for _, row in candidates_df.iterrows():
+            s1_id = str(row["source1_entity_id"])
+            cand_list = [c.strip() for c in (row.get("candidate_entity_ids") or "").split(",") if c.strip()]
+            s1_row = s1_dict.get(s1_id, empty_record)
+            for cid in cand_list:
+                if cid not in s2s3_dict:
+                    continue
+                cand_row = s2s3_dict[cid]
+                feats = build_features(s1_row, cand_row)
+                feats.update({"source1_entity_id": s1_id, "candidate_id": cid})
+                rows.append(feats)
+    else:
+        cand_col = "candidate_id" if "candidate_id" in candidates_df.columns else "matched_entity_id"
+        s1_ids = candidates_df["source1_entity_id"].astype(str).tolist()
+        cand_ids = candidates_df[cand_col].astype(str).tolist()
+        for s1_id, cid in zip(s1_ids, cand_ids):
+            if s1_id not in s1_dict or cid not in s2s3_dict:
                 continue
-            cand_row = s2s3_index.loc[cid]
+            s1_row = s1_dict[s1_id]
+            cand_row = s2s3_dict[cid]
             feats = build_features(s1_row, cand_row)
             feats.update({"source1_entity_id": s1_id, "candidate_id": cid})
             rows.append(feats)
+
     return pd.DataFrame(rows)
+
+
+def build_feature_matrix(
+    candidates_df: pd.DataFrame,
+    s1_df: pd.DataFrame,
+    s2_df: pd.DataFrame,
+    s3_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Generate feature matrix for candidate pairs.
+    Each row of candidates_df produces one row of features.
+    """
+    s1_dict = s1_df.set_index("entity_id").to_dict(orient="index")
+    s2s3_df = pd.concat([s2_df, s3_df], ignore_index=True).drop_duplicates(subset=["entity_id"])
+    s2s3_dict = s2s3_df.set_index("entity_id").to_dict(orient="index")
+
+    empty_record = {"business_name": "", "business_address": "", "country": ""}
+
+    cand_col = "matched_entity_id" if "matched_entity_id" in candidates_df.columns else "candidate_id"
+
+    s1_ids = candidates_df["source1_entity_id"].astype(str).tolist()
+    cand_ids = candidates_df[cand_col].astype(str).tolist()
+
+    feature_rows = []
+    for s1_id, c_id in zip(s1_ids, cand_ids):
+        s1_row = s1_dict.get(s1_id, empty_record)
+        cand_row = s2s3_dict.get(c_id, empty_record)
+        feature_rows.append(build_features(s1_row, cand_row))
+
+    return pd.DataFrame(feature_rows)
+

@@ -286,6 +286,24 @@ def generate_candidates(source1, source2):
     All blocking rules are country-aware.
     """
 
+    if "country_norm" not in source1.columns or "name_norm" not in source1.columns or "address_norm" not in source1.columns:
+        source1 = source1.copy()
+        if "name_norm" not in source1.columns:
+            source1["name_norm"] = source1["business_name"].apply(normalize_business_name)
+        if "address_norm" not in source1.columns:
+            source1["address_norm"] = source1["business_address"].apply(normalize_address)
+        if "country_norm" not in source1.columns:
+            source1["country_norm"] = source1["country"].apply(normalize_country)
+
+    if "country_norm" not in source2.columns or "name_norm" not in source2.columns or "address_norm" not in source2.columns:
+        source2 = source2.copy()
+        if "name_norm" not in source2.columns:
+            source2["name_norm"] = source2["business_name"].apply(normalize_business_name)
+        if "address_norm" not in source2.columns:
+            source2["address_norm"] = source2["business_address"].apply(normalize_address)
+        if "country_norm" not in source2.columns:
+            source2["country_norm"] = source2["country"].apply(normalize_country)
+
     source2_index = build_source_index(
         source2
     )
